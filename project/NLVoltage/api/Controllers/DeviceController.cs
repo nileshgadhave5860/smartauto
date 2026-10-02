@@ -44,6 +44,22 @@ public class DeviceController : ControllerBase
 		return NoContent();
 	}
 
+	[HttpGet("online")]
+	[ProducesResponseType(typeof(bool), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	public async Task<ActionResult<bool>> GetDeviceOnline(
+		[FromQuery, BindRequired] int deviceId,
+		CancellationToken cancellationToken)
+	{
+		if (deviceId <= 0)
+		{
+			return BadRequest("deviceId must be greater than zero.");
+		}
+
+		var isOnline = await _mqttService.GetDeviceOnlineAsync(deviceId, cancellationToken);
+		return Ok(isOnline);
+	}
+
 	[HttpGet("auto/status")]
 	[ProducesResponseType(typeof(int), StatusCodes.Status200OK)]
 	[ProducesResponseType(StatusCodes.Status404NotFound)]

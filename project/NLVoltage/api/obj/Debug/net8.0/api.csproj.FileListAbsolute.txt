@@ -33,3 +33,11 @@ D:\AdvanceProject\smartauto\project\NLVoltage\api\obj\Debug\net8.0\refint\api.dl
 D:\AdvanceProject\smartauto\project\NLVoltage\api\obj\Debug\net8.0\api.pdb
 D:\AdvanceProject\smartauto\project\NLVoltage\api\obj\Debug\net8.0\api.genruntimeconfig.cache
 D:\AdvanceProject\smartauto\project\NLVoltage\api\obj\Debug\net8.0\ref\api.dll
+D:\AdvanceProject\smartauto\project\NLVoltage\api\obj\Debug\net8.0\api.sourcelink.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\appsettings.Development.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\appsettings.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\api.staticwebassets.endpoints.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\api.deps.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\api.runtimeconfig.json
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\api.dll
+C:\Users\nilsi\AppData\Local\Temp\NLVoltageApiBuild\api.pdb

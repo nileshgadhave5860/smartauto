@@ -16,6 +16,8 @@ public class MqttService : BackgroundService
     private readonly ConcurrentDictionary<int, List<DevicePhaseReading>> _measurements = new();
     private readonly ConcurrentDictionary<int, DeviceLimit> _limits = new();
     private readonly ConcurrentDictionary<int, int> _autoStatuses = new();
+    private readonly ConcurrentDictionary<int, (bool IsOnline, DateTimeOffset UpdatedAt)> _deviceAvailability = new();
+    private static readonly TimeSpan AvailabilityHeartbeatTimeout = TimeSpan.FromSeconds(65);
 
     public MqttService(IConfiguration configuration, ILogger<MqttService> logger)
     {
@@ -80,6 +82,20 @@ public class MqttService : BackgroundService
         }
 
         var payload = Encoding.UTF8.GetString(args.ApplicationMessage.Payload.ToArray());
+        if (topicParts.Length == 4 && topicParts[3] == "availability")
+        {
+            if (payload.Trim().Equals("online", StringComparison.OrdinalIgnoreCase))
+            {
+                _deviceAvailability[deviceId] = (true, DateTimeOffset.UtcNow);
+            }
+            else if (payload.Trim().Equals("offline", StringComparison.OrdinalIgnoreCase))
+            {
+                _deviceAvailability[deviceId] = (false, DateTimeOffset.UtcNow);
+            }
+
+            return;
+        }
+
         try
         {
             if (topicParts.Length == 4 && topicParts[3] == "measurement")
@@ -126,53 +142,64 @@ public class MqttService : BackgroundService
         }
 
         var isMotorOn = autoStatus == 1;
-        var reason = isMotorOn
-            ? EvaluatePhases(deviceId)
-            : "auto status is off";
-        isMotorOn = isMotorOn && reason == "phase limits are within range";
+        var reason = "auto status is off";
+        if (isMotorOn)
+        {
+            isMotorOn = CheckPhases(deviceId, out reason);
+        }
 
         await PublishRetainedAsync($"smartauto/device/{deviceId}/status", isMotorOn ? "1" : "2");
         await PublishRetainedAsync($"smartauto/device/{deviceId}/status/reason", reason);
     }
 
-    private string EvaluatePhases(int deviceId)
+    private bool CheckPhases(int deviceId, out string reason)
     {
-        if (!_measurements.TryGetValue(deviceId, out var readings)
-            || !_limits.TryGetValue(deviceId, out var limit))
+        if (!_limits.TryGetValue(deviceId, out var limit))
         {
-            return "measurement or phase limits are unavailable";
+            reason = "phase limits are unavailable";
+            return false;
         }
 
-        var checkedAnyLimit = false;
-        foreach (var (phaseName, phaseLimit) in GetPhaseLimits(limit))
+        var enabledPhaseLimits = GetPhaseLimits(limit)
+            .Where(phase => phase.Limit.IsVol || phase.Limit.IsA)
+            .ToList();
+        if (enabledPhaseLimits.Count == 0)
         {
-            if (!phaseLimit.IsVol && !phaseLimit.IsA)
-            {
-                continue;
-            }
+            reason = "auto is on; no phase limits are enabled";
+            return true;
+        }
 
-            checkedAnyLimit = true;
+        if (!_measurements.TryGetValue(deviceId, out var readings))
+        {
+            reason = "measurements are unavailable";
+            return false;
+        }
+
+        foreach (var (phaseName, phaseLimit) in enabledPhaseLimits)
+        {
             var reading = readings.LastOrDefault(item =>
                 string.Equals(item.VName, phaseName, StringComparison.OrdinalIgnoreCase));
             if (reading is null)
             {
-                return $"{phaseName} measurement is unavailable";
+                reason = $"{phaseName} measurement is unavailable";
+                return false;
             }
 
             if (phaseLimit.IsVol && (reading.VValue < phaseLimit.MinVol || reading.VValue > phaseLimit.MaxVol))
             {
-                return $"{phaseName} voltage is outside the configured limits";
+                reason = $"{phaseName} voltage is outside the configured limits";
+                return false;
             }
 
             if (phaseLimit.IsA && (reading.AValue < phaseLimit.MinA || reading.AValue > phaseLimit.MaxA))
             {
-                return $"{phaseName} current is outside the configured limits";
+                reason = $"{phaseName} current is outside the configured limits";
+                return false;
             }
         }
 
-        return checkedAnyLimit
-            ? "phase limits are within range"
-            : "no phase limits are enabled";
+        reason = "phase limits are within range";
+        return true;
     }
 
     private static IEnumerable<(string Name, PhaseLimit Limit)> GetPhaseLimits(DeviceLimit limit)
@@ -358,6 +385,16 @@ public class MqttService : BackgroundService
     public Task<int?> GetMotorStatusAsync(int autoId, CancellationToken cancellationToken = default)
     {
         return GetRetainedStatusAsync($"smartauto/device/{autoId}/status", cancellationToken);
+    }
+
+    public Task<bool> GetDeviceOnlineAsync(int deviceId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var isOnline = _deviceAvailability.TryGetValue(deviceId, out var state)
+            && state.IsOnline
+            && DateTimeOffset.UtcNow - state.UpdatedAt <= AvailabilityHeartbeatTimeout;
+        return Task.FromResult(isOnline);
     }
 
     private async Task<int?> GetRetainedStatusAsync(string topic, CancellationToken cancellationToken)
