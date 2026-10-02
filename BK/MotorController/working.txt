@@ -1,0 +1,199 @@
+#include <WiFi.h>
+#include <PubSubClient.h>
+#include <Preferences.h>
+
+const char* WIFI_SSID = "Ayush_Ext";
+const char* WIFI_PASSWORD = "Ayush@5860";
+
+const char* MQTT_SERVER = "88.222.213.221";
+const int MQTT_PORT = 1883;
+
+const char* MQTT_TOPIC = "smartauto/device/101";
+const char* STATUS_TOPIC = "smartauto/device/101/status";
+
+#define RELAY_PIN 26
+
+// Your working relay test showed Active LOW
+#define RELAY_ON LOW
+#define RELAY_OFF HIGH
+
+WiFiClient espClient;
+PubSubClient mqttClient(espClient);
+
+Preferences preferences;
+
+int lastStatus;
+
+
+// =========================
+// MQTT MESSAGE
+// =========================
+void callback(char* topic, byte* payload, unsigned int length)
+{
+  String message = "";
+
+  for (unsigned int i = 0; i < length; i++)
+  {
+    message += (char)payload[i];
+  }
+
+  Serial.print("Received: ");
+  Serial.println(message);
+
+  if (message == "1")
+  {
+    digitalWrite(RELAY_PIN, RELAY_ON);
+
+    lastStatus = 1;
+    preferences.putInt("status", 1);
+
+    Serial.println("RELAY ON");
+    Serial.println("Saved STATUS = 1");
+
+    mqttClient.publish(STATUS_TOPIC, "1");
+  }
+
+  else if (message == "2")
+  {
+    digitalWrite(RELAY_PIN, RELAY_OFF);
+
+    lastStatus = 2;
+    preferences.putInt("status", 2);
+
+    Serial.println("RELAY OFF");
+    Serial.println("Saved STATUS = 2");
+
+    mqttClient.publish(STATUS_TOPIC, "2");
+  }
+}
+
+
+// =========================
+// WIFI
+// =========================
+void connectWiFi()
+{
+  Serial.println("Connecting WiFi...");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("WiFi Connected");
+
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+
+// =========================
+// MQTT
+// =========================
+void connectMQTT()
+{
+  while (!mqttClient.connected())
+  {
+    Serial.println("Connecting MQTT...");
+
+    String clientId = "ESP32_101_";
+    clientId += String(random(10000));
+
+    if (mqttClient.connect(clientId.c_str()))
+    {
+      Serial.println("MQTT Connected");
+
+      mqttClient.subscribe(MQTT_TOPIC);
+
+      Serial.print("Subscribed: ");
+      Serial.println(MQTT_TOPIC);
+
+      // Send current status
+      if (lastStatus == 1)
+      {
+        mqttClient.publish(STATUS_TOPIC, "1");
+        Serial.println("Sent current status: 1");
+      }
+      else
+      {
+        mqttClient.publish(STATUS_TOPIC, "2");
+        Serial.println("Sent current status: 2");
+      }
+    }
+    else
+    {
+      Serial.print("MQTT failed, state = ");
+      Serial.println(mqttClient.state());
+
+      delay(3000);
+    }
+  }
+}
+
+
+// =========================
+// SETUP
+// =========================
+void setup()
+{
+  Serial.begin(115200);
+
+  // Relay
+  pinMode(RELAY_PIN, OUTPUT);
+
+  // Open ESP32 permanent memory
+  preferences.begin("motor", false);
+
+  // Read previous status
+  lastStatus = preferences.getInt("status", 2);
+
+  Serial.println();
+  Serial.println("==============================");
+  Serial.println("ESP32 MOTOR CONTROLLER");
+  Serial.println("==============================");
+
+  Serial.print("Saved status = ");
+  Serial.println(lastStatus);
+
+  // Restore relay immediately
+  if (lastStatus == 1)
+  {
+    digitalWrite(RELAY_PIN, RELAY_ON);
+    Serial.println("RESTORE -> RELAY ON");
+  }
+  else
+  {
+    digitalWrite(RELAY_PIN, RELAY_OFF);
+    Serial.println("RESTORE -> RELAY OFF");
+  }
+
+  // WiFi
+  connectWiFi();
+
+  // MQTT
+  mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
+  mqttClient.setCallback(callback);
+}
+
+
+// =========================
+// LOOP
+// =========================
+void loop()
+{
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    connectWiFi();
+  }
+
+  if (!mqttClient.connected())
+  {
+    connectMQTT();
+  }
+
+  mqttClient.loop();
+}

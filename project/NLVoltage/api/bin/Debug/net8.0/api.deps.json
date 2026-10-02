@@ -1,0 +1,131 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "api/1.0.0": {
+        "dependencies": {
+          "MQTTnet": "5.2.0.1603",
+          "Swashbuckle.AspNetCore": "7.3.2"
+        },
+        "runtime": {
+          "api.dll": {}
+        }
+      },
+      "Microsoft.Extensions.ApiDescription.Server/6.0.5": {},
+      "Microsoft.OpenApi/1.6.22": {
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.OpenApi.dll": {
+            "assemblyVersion": "1.6.22.0",
+            "fileVersion": "1.6.22.0"
+          }
+        }
+      },
+      "MQTTnet/5.2.0.1603": {
+        "runtime": {
+          "lib/net8.0/MQTTnet.dll": {
+            "assemblyVersion": "5.2.0.1603",
+            "fileVersion": "5.2.0.1603"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore/7.3.2": {
+        "dependencies": {
+          "Microsoft.Extensions.ApiDescription.Server": "6.0.5",
+          "Swashbuckle.AspNetCore.Swagger": "7.3.2",
+          "Swashbuckle.AspNetCore.SwaggerGen": "7.3.2",
+          "Swashbuckle.AspNetCore.SwaggerUI": "7.3.2"
+        }
+      },
+      "Swashbuckle.AspNetCore.Swagger/7.3.2": {
+        "dependencies": {
+          "Microsoft.OpenApi": "1.6.22"
+        },
+        "runtime": {
+          "lib/net8.0/Swashbuckle.AspNetCore.Swagger.dll": {
+            "assemblyVersion": "7.3.2.0",
+            "fileVersion": "7.3.2.1170"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerGen/7.3.2": {
+        "dependencies": {
+          "Swashbuckle.AspNetCore.Swagger": "7.3.2"
+        },
+        "runtime": {
+          "lib/net8.0/Swashbuckle.AspNetCore.SwaggerGen.dll": {
+            "assemblyVersion": "7.3.2.0",
+            "fileVersion": "7.3.2.1170"
+          }
+        }
+      },
+      "Swashbuckle.AspNetCore.SwaggerUI/7.3.2": {
+        "runtime": {
+          "lib/net8.0/Swashbuckle.AspNetCore.SwaggerUI.dll": {
+            "assemblyVersion": "7.3.2.0",
+            "fileVersion": "7.3.2.1170"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "api/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Microsoft.Extensions.ApiDescription.Server/6.0.5": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Ckb5EDBUNJdFWyajfXzUIMRkhf52fHZOQuuZg/oiu8y7zDCVwD0iHhew6MnThjHmevanpxL3f5ci2TtHQEN6bw==",
+      "path": "microsoft.extensions.apidescription.server/6.0.5",
+      "hashPath": "microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512"
+    },
+    "Microsoft.OpenApi/1.6.22": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aBvunmrdu/x+4CaA/UP1Jx4xWGwk4kymhoIRnn2Vp+zi5/KOPQJ9EkSXHRUr01WcGKtYl3Au7XfkPJbU1G2sjQ==",
+      "path": "microsoft.openapi/1.6.22",
+      "hashPath": "microsoft.openapi.1.6.22.nupkg.sha512"
+    },
+    "MQTTnet/5.2.0.1603": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-iNuWVo/568aRo2ExEN2qkC4J5b07ckKqt+9Uok2kIbbK7PMBsXvYiKVENPHmOBWFB5ExhlNQb/qQ8M9/IYRTdQ==",
+      "path": "mqttnet/5.2.0.1603",
+      "hashPath": "mqttnet.5.2.0.1603.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore/7.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-WEkW7Cl8bexT75eURuqrqM/TQx+ftWKOWlCHzmw3Fl3oAmxiBO/lDVOuuqZsaBCHQIBcZxA6BbyiG5dv2mD2tw==",
+      "path": "swashbuckle.aspnetcore/7.3.2",
+      "hashPath": "swashbuckle.aspnetcore.7.3.2.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.Swagger/7.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-39Z2N3cLHDcDinu2IW5IaQO9wGPKTbc+vKbjIT/6gN3jFYypWY5U3O8i7Y9rmYDgxkm6niICnkcFZ3hEvikIHA==",
+      "path": "swashbuckle.aspnetcore.swagger/7.3.2",
+      "hashPath": "swashbuckle.aspnetcore.swagger.7.3.2.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.SwaggerGen/7.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-x5famjpcgazpT/8eEIlpSYSTZDq6ojMARhuJgj6O67Uk+Yb1DdDM5yikdL7GK1pMk5rYBETUCRWYP6rp+vHnlA==",
+      "path": "swashbuckle.aspnetcore.swaggergen/7.3.2",
+      "hashPath": "swashbuckle.aspnetcore.swaggergen.7.3.2.nupkg.sha512"
+    },
+    "Swashbuckle.AspNetCore.SwaggerUI/7.3.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-SNQuFjYin9KhkoCSVOD5/Y4VEyAjKBDeZkIqqY6x+oI21HMKzzVkeJA9V7tWFXf5df4m/+pTIlbKO7g5W9UroQ==",
+      "path": "swashbuckle.aspnetcore.swaggerui/7.3.2",
+      "hashPath": "swashbuckle.aspnetcore.swaggerui.7.3.2.nupkg.sha512"
+    }
+  }
+}

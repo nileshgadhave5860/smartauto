@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "dgSpecHash": "5J7fPfvb/jw=",
+  "success": true,
+  "projectFilePath": "D:\\AdvanceProject\\smartauto\\project\\NLVoltage\\api\\api.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\nilsi\\.nuget\\packages\\microsoft.extensions.apidescription.server\\6.0.5\\microsoft.extensions.apidescription.server.6.0.5.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\microsoft.openapi\\1.6.22\\microsoft.openapi.1.6.22.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\mqttnet\\5.2.0.1603\\mqttnet.5.2.0.1603.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\swashbuckle.aspnetcore\\7.3.2\\swashbuckle.aspnetcore.7.3.2.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\swashbuckle.aspnetcore.swagger\\7.3.2\\swashbuckle.aspnetcore.swagger.7.3.2.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\swashbuckle.aspnetcore.swaggergen\\7.3.2\\swashbuckle.aspnetcore.swaggergen.7.3.2.nupkg.sha512",
+    "C:\\Users\\nilsi\\.nuget\\packages\\swashbuckle.aspnetcore.swaggerui\\7.3.2\\swashbuckle.aspnetcore.swaggerui.7.3.2.nupkg.sha512"
+  ],
+  "logs": []
+}

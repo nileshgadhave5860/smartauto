@@ -1,0 +1,39 @@
+@api_HostAddress = http://localhost:5223
+@deviceId = 101
+@autoId = 1
+@status = 1
+
+PUT {{api_HostAddress}}/api/device/limit?deviceId={{deviceId}}
+Content-Type: application/json
+
+{
+	"n": { "isVol": true, "minVol": 0, "maxVol": 0, "isA": true, "minA": 0, "maxA": 0 },
+	"l": { "isVol": true, "minVol": 0, "maxVol": 0, "isA": true, "minA": 0, "maxA": 0 },
+	"r": { "isVol": true, "minVol": 210, "maxVol": 240, "isA": false, "minA": 0, "maxA": 0 },
+	"b": { "isVol": true, "minVol": 210, "maxVol": 240, "isA": false, "minA": 0, "maxA": 0 },
+	"y": { "isVol": true, "minVol": 210, "maxVol": 240, "isA": false, "minA": 0, "maxA": 0 }
+}
+
+###
+
+GET {{api_HostAddress}}/api/device/limit?deviceId={{deviceId}}
+Accept: application/json
+
+###
+
+GET {{api_HostAddress}}/api/device/measurements?deviceId={{deviceId}}
+Accept: application/json
+
+###
+
+GET {{api_HostAddress}}/api/device/motor/status?autoId={{autoId}}
+Accept: application/json
+
+###
+
+PUT {{api_HostAddress}}/api/device/auto/status?autoId={{autoId}}&status={{status}}
+
+###
+
+GET {{api_HostAddress}}/api/device/auto/status?autoId={{autoId}}
+Accept: application/json
