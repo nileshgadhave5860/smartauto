@@ -1,4 +1,4 @@
-# NLVoltage
+# SmartMotorAuto
 
 This workspace contains three independent projects:
 
@@ -18,11 +18,14 @@ dotnet run
 ```powershell
 cd web
 npm install
-npm run dev
+npm start
 ```
 
 ## Build and upload ESP32 firmware
 
 Open `firmware/` in VS Code with the PlatformIO extension, then build and upload
-the `esp32dev` environment. The starter sketch blinks GPIO 2 and writes serial
-output at 115200 baud.
+the `esp32dev` environment. In Auto Single Phase mode, the firmware reads LN
+voltage and current from Modbus input registers 0-3 and publishes the reading
+to the device measurement topic. The defaults assume high-word-first 32-bit
+floats, with voltage in registers 0-1 and current in registers 2-3; update the
+register and scale constants in `firmware/src/main.cpp` to match the meter.

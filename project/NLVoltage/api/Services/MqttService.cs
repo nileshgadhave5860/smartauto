@@ -10,12 +10,16 @@ namespace Api.Services
 {
 public class MqttService : BackgroundService
 {
+    private sealed class MeterReadingPayload
+    {
+        public decimal? LNVolt { get; set; }
+        public decimal? LNA { get; set; }
+    }
+
     private readonly IMqttClient _client;
     private readonly IConfiguration _configuration;
     private readonly ILogger<MqttService> _logger;
     private readonly ConcurrentDictionary<int, List<DevicePhaseReading>> _measurements = new();
-    private readonly ConcurrentDictionary<int, DeviceLimit> _limits = new();
-    private readonly ConcurrentDictionary<int, int> _autoStatuses = new();
     private readonly ConcurrentDictionary<int, (bool IsOnline, DateTimeOffset UpdatedAt)> _deviceAvailability = new();
     private static readonly TimeSpan AvailabilityHeartbeatTimeout = TimeSpan.FromSeconds(65);
 
@@ -69,7 +73,7 @@ public class MqttService : BackgroundService
         }
     }
 
-    private async Task HandleAutomationMessageAsync(MqttApplicationMessageReceivedEventArgs args)
+    private Task HandleAutomationMessageAsync(MqttApplicationMessageReceivedEventArgs args)
     {
         var topicParts = args.ApplicationMessage.Topic.Split('/');
         if (topicParts.Length < 4
@@ -78,7 +82,7 @@ public class MqttService : BackgroundService
             || !int.TryParse(topicParts[2], out var deviceId)
             || args.ApplicationMessage.Payload.IsEmpty)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         var payload = Encoding.UTF8.GetString(args.ApplicationMessage.Payload.ToArray());
@@ -93,7 +97,7 @@ public class MqttService : BackgroundService
                 _deviceAvailability[deviceId] = (false, DateTimeOffset.UtcNow);
             }
 
-            return;
+            return Task.CompletedTask;
         }
 
         try
@@ -105,110 +109,15 @@ public class MqttService : BackgroundService
                 if (readings is not null)
                 {
                     _measurements[deviceId] = readings;
-                    await EvaluateMotorAsync(deviceId);
                 }
-            }
-            else if (topicParts.Length == 4 && topicParts[3] == "limit")
-            {
-                var limit = JsonSerializer.Deserialize<DeviceLimit>(payload,
-                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (limit is not null)
-                {
-                    _limits[deviceId] = limit;
-                    await EvaluateMotorAsync(deviceId);
-                }
-            }
-            else if (topicParts.Length == 5
-                && topicParts[3] == "auto"
-                && topicParts[4] == "status"
-                && int.TryParse(payload, out var status)
-                && status is 1 or 2)
-            {
-                _autoStatuses[deviceId] = status;
-                await EvaluateMotorAsync(deviceId);
             }
         }
         catch (JsonException)
         {
             // Ignore malformed retained device messages and keep the last valid state.
         }
-    }
 
-    private async Task EvaluateMotorAsync(int deviceId)
-    {
-        if (!_autoStatuses.TryGetValue(deviceId, out var autoStatus))
-        {
-            return;
-        }
-
-        var isMotorOn = autoStatus == 1;
-        var reason = "auto status is off";
-        if (isMotorOn)
-        {
-            isMotorOn = CheckPhases(deviceId, out reason);
-        }
-
-        await PublishRetainedAsync($"smartauto/device/{deviceId}/status", isMotorOn ? "1" : "2");
-        await PublishRetainedAsync($"smartauto/device/{deviceId}/status/reason", reason);
-    }
-
-    private bool CheckPhases(int deviceId, out string reason)
-    {
-        if (!_limits.TryGetValue(deviceId, out var limit))
-        {
-            reason = "phase limits are unavailable";
-            return false;
-        }
-
-        var enabledPhaseLimits = GetPhaseLimits(limit)
-            .Where(phase => phase.Limit.IsVol || phase.Limit.IsA)
-            .ToList();
-        if (enabledPhaseLimits.Count == 0)
-        {
-            reason = "auto is on; no phase limits are enabled";
-            return true;
-        }
-
-        if (!_measurements.TryGetValue(deviceId, out var readings))
-        {
-            reason = "measurements are unavailable";
-            return false;
-        }
-
-        foreach (var (phaseName, phaseLimit) in enabledPhaseLimits)
-        {
-            var reading = readings.LastOrDefault(item =>
-                string.Equals(item.VName, phaseName, StringComparison.OrdinalIgnoreCase));
-            if (reading is null)
-            {
-                reason = $"{phaseName} measurement is unavailable";
-                return false;
-            }
-
-            if (phaseLimit.IsVol && (reading.VValue < phaseLimit.MinVol || reading.VValue > phaseLimit.MaxVol))
-            {
-                reason = $"{phaseName} voltage is outside the configured limits";
-                return false;
-            }
-
-            if (phaseLimit.IsA && (reading.AValue < phaseLimit.MinA || reading.AValue > phaseLimit.MaxA))
-            {
-                reason = $"{phaseName} current is outside the configured limits";
-                return false;
-            }
-        }
-
-        reason = "phase limits are within range";
-        return true;
-    }
-
-    private static IEnumerable<(string Name, PhaseLimit Limit)> GetPhaseLimits(DeviceLimit limit)
-    {
-        yield return ("N", limit.N);
-        yield return ("L", limit.L);
-        yield return ("R", limit.R);
-        yield return ("B", limit.B);
-        yield return ("Y", limit.Y);
+        return Task.CompletedTask;
     }
 
     private async Task PublishCurrentAsync(int deviceId, List<DevicePhaseReading> readings)
@@ -305,10 +214,66 @@ public class MqttService : BackgroundService
             $"smartauto/device/{deviceId}/measurement",
             cancellationToken);
 
-        return readings?
+        var normalizedReadings = readings?
             .GroupBy(reading => reading.VName, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.Last())
             .ToList();
+
+        var lnReading = normalizedReadings?.FirstOrDefault(
+            reading => reading.VName.Equals("LN", StringComparison.OrdinalIgnoreCase)
+                || reading.VName.Equals("N", StringComparison.OrdinalIgnoreCase));
+        if (lnReading is null || (lnReading.VStatus < 0 && lnReading.AStatus < 0))
+        {
+            var externalLnReading = await GetExternalLnReadingAsync(deviceId, cancellationToken);
+            if (externalLnReading is not null)
+            {
+                normalizedReadings ??= [];
+                normalizedReadings.RemoveAll(reading =>
+                    reading.VName.Equals("LN", StringComparison.OrdinalIgnoreCase)
+                    || reading.VName.Equals("N", StringComparison.OrdinalIgnoreCase));
+                normalizedReadings.Add(externalLnReading);
+            }
+        }
+
+        return normalizedReadings;
+    }
+
+    private async Task<DevicePhaseReading?> GetExternalLnReadingAsync(
+        int deviceId,
+        CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(_configuration["Mqtt:MeterDeviceId"], out var meterDeviceId)
+            || deviceId != meterDeviceId)
+        {
+            return null;
+        }
+
+        var topic = _configuration["Mqtt:MeterTopic"];
+        if (string.IsNullOrWhiteSpace(topic))
+        {
+            return null;
+        }
+
+        var meterReading = await GetRetainedJsonAsync<MeterReadingPayload>(topic, cancellationToken);
+        if (meterReading?.LNVolt is not decimal voltage || meterReading.LNA is not decimal current)
+        {
+            return null;
+        }
+
+        var limits = await GetLimitAsync(deviceId, cancellationToken);
+        var voltageStatus = GetLimitStatus(voltage, limits?.LN.IsVol == true, limits?.LN.MinVol ?? 0, limits?.LN.MaxVol ?? 0);
+        var currentStatus = GetLimitStatus(current, limits?.LN.IsA == true, limits?.LN.MinA ?? 0, limits?.LN.MaxA ?? 0);
+        return new DevicePhaseReading("LN", voltage, voltageStatus, current, currentStatus);
+    }
+
+    private static int GetLimitStatus(decimal value, bool enabled, decimal minimum, decimal maximum)
+    {
+        if (!enabled)
+        {
+            return 0;
+        }
+
+        return value >= minimum && value <= maximum ? 1 : 2;
     }
 
     private async Task<T?> GetRetainedJsonAsync<T>(string topic, CancellationToken cancellationToken)
@@ -373,7 +338,7 @@ public class MqttService : BackgroundService
             var unsubscribeOptions = new MqttClientUnsubscribeOptionsBuilder()
                 .WithTopicFilter(topic)
                 .Build();
-            await _client.UnsubscribeAsync(unsubscribeOptions, cancellationToken);
+            await _client.UnsubscribeAsync(unsubscribeOptions, CancellationToken.None);
         }
     }
 
@@ -385,6 +350,11 @@ public class MqttService : BackgroundService
     public Task<int?> GetMotorStatusAsync(int autoId, CancellationToken cancellationToken = default)
     {
         return GetRetainedStatusAsync($"smartauto/device/{autoId}/status", cancellationToken);
+    }
+
+    public Task<string?> GetMotorReasonAsync(int autoId, CancellationToken cancellationToken = default)
+    {
+        return GetRetainedTextAsync($"smartauto/device/{autoId}/status/reason", cancellationToken);
     }
 
     public Task<bool> GetDeviceOnlineAsync(int deviceId, CancellationToken cancellationToken = default)
@@ -451,7 +421,53 @@ public class MqttService : BackgroundService
             var unsubscribeOptions = new MqttClientUnsubscribeOptionsBuilder()
                 .WithTopicFilter(topic)
                 .Build();
-            await _client.UnsubscribeAsync(unsubscribeOptions, cancellationToken);
+            await _client.UnsubscribeAsync(unsubscribeOptions, CancellationToken.None);
+        }
+    }
+
+    private async Task<string?> GetRetainedTextAsync(string topic, CancellationToken cancellationToken)
+    {
+        await ConnectAsync();
+
+        var result = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Func<MqttApplicationMessageReceivedEventArgs, Task> messageHandler = args =>
+        {
+            if (args.ApplicationMessage.Topic == topic)
+            {
+                var payload = args.ApplicationMessage.Payload;
+                result.TrySetResult(payload.IsEmpty ? null : Encoding.UTF8.GetString(payload.ToArray()));
+            }
+
+            return Task.CompletedTask;
+        };
+
+        _client.ApplicationMessageReceivedAsync += messageHandler;
+        try
+        {
+            var options = new MqttClientSubscribeOptionsBuilder()
+                .WithTopicFilter(filter => filter
+                    .WithTopic(topic)
+                    .WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce))
+                .Build();
+
+            await _client.SubscribeAsync(options, cancellationToken);
+            var timeoutTask = Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            var completedTask = await Task.WhenAny(result.Task, timeoutTask);
+            if (completedTask == result.Task)
+            {
+                return await result.Task;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return null;
+        }
+        finally
+        {
+            _client.ApplicationMessageReceivedAsync -= messageHandler;
+            var unsubscribeOptions = new MqttClientUnsubscribeOptionsBuilder()
+                .WithTopicFilter(topic)
+                .Build();
+            await _client.UnsubscribeAsync(unsubscribeOptions, CancellationToken.None);
         }
     }
 

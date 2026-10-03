@@ -5,13 +5,12 @@ namespace Api.Module
 
     public class DeviceLimit
     {
-        public PhaseLimit N { get; set; } = new();
-        public PhaseLimit L { get; set; } = new();
-        public PhaseLimit R { get; set; } = new();
 
-        public PhaseLimit B { get; set; } = new();
-
-        public PhaseLimit Y { get; set; } = new();
+        public bool IsAutoSinglePhase { get; set; } = false;
+        public PhaseLimit L1 { get; set; } = new();
+        public PhaseLimit L2 { get; set; } = new();
+        public PhaseLimit L3 { get; set; } = new();
+        public PhaseLimit LN { get; set; } = new();
     }
 
     public class PhaseLimit

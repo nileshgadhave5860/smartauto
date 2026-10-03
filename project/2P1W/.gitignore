@@ -1,0 +1,4 @@
+**/bin/
+**/obj/
+firmware/esp32/.pio/
+firmware/esp32/include/meter_config.h

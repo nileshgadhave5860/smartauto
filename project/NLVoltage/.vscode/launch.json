@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Launch NLVoltage API",
+      "name": "Launch SmartMotorAuto API",
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build-api",
@@ -13,12 +13,26 @@
       "console": "internalConsole",
       "env": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      },
+      }
+    },
+    {
+      "name": "Launch SmartMotorAuto Web",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm start",
+      "cwd": "${workspaceFolder}/web",
       "serverReadyAction": {
         "action": "openExternally",
-        "pattern": "\\bNow listening on:\\s+(https?://\\S+)",
-        "uriFormat": "%s/swagger"
+        "pattern": "Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s"
       }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run SmartMotorAuto API + Web",
+      "configurations": ["Launch SmartMotorAuto API", "Launch SmartMotorAuto Web"],
+      "stopAll": true
     }
   ]
 }

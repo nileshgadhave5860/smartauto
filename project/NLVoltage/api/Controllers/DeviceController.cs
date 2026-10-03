@@ -94,14 +94,17 @@ public class DeviceController : ControllerBase
 			return BadRequest("autoId must be greater than zero.");
 		}
 
-		var motorStatus = await _mqttService.GetMotorStatusAsync(autoId, cancellationToken);
+		var motorStatusTask = _mqttService.GetMotorStatusAsync(autoId, cancellationToken);
+		var motorReasonTask = _mqttService.GetMotorReasonAsync(autoId, cancellationToken);
+		await Task.WhenAll(motorStatusTask, motorReasonTask);
+		var motorStatus = await motorStatusTask;
 		if (motorStatus is null)
 		{
 			return Ok(new MotorStatusResponse(autoId, false, "not setup auto"));
 		}
 
 		var isMotorOn = motorStatus == 1;
-		var reason = isMotorOn ? "motor is on" : "motor is off";
+		var reason = isMotorOn ? "motor is on" : await motorReasonTask ?? "motor is off";
 		return Ok(new MotorStatusResponse(autoId, isMotorOn, reason));
 	}
 
@@ -130,6 +133,29 @@ public class DeviceController : ControllerBase
 		}
 
 		var readings = await _mqttService.GetPhaseReadingsAsync(deviceId, cancellationToken);
-		return Ok(readings ?? new List<DevicePhaseReading>());
+		var readingsByPhase = new Dictionary<string, DevicePhaseReading>(StringComparer.OrdinalIgnoreCase);
+		foreach (var reading in readings ?? [])
+		{
+			var phase = NormalizePhaseName(reading.VName);
+			if (phase is not null)
+			{
+				readingsByPhase[phase] = reading with { VName = phase };
+			}
+		}
+
+		var phases = new[] { "L1", "L2", "L3", "LN" };
+		var completeReadings = phases.Select(phase => readingsByPhase.TryGetValue(phase, out var reading)
+			? reading
+			: new DevicePhaseReading(phase, 0, -1, 0, -1));
+		return Ok(completeReadings);
 	}
+
+	private static string? NormalizePhaseName(string? phaseName) => phaseName?.Trim().ToUpperInvariant() switch
+	{
+		"L" or "L1" => "L1",
+		"L2" => "L2",
+		"L3" => "L3",
+		"N" or "LN" => "LN",
+		_ => null
+	};
 }

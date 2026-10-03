@@ -1,9 +1,10 @@
 {
-  "name": "web",
+  "name": "smart-motor-auto-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "vite",
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
